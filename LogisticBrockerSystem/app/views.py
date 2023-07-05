@@ -1,10 +1,22 @@
-from rest_framework import viewsets
-
+from rest_framework import viewsets, status
+from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import *
 from .serializers import *
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.response import Response
+from rest_framework.authtoken.models import Token
+from rest_framework.views import APIView
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenVerifyView
+from rest_framework_simplejwt.serializers import TokenObtainSerializer, TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import AccessToken, UntypedToken
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from rest_framework_simplejwt.serializers import TokenVerifySerializer
 
 @api_view(['GET'])
 def calculate_sum(request):
@@ -116,3 +128,55 @@ class FeedbackImageViewSet(viewsets.ModelViewSet):
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
+
+
+class OrderListView(generics.ListAPIView):
+    queryset = Order.objects.all()
+    permission_classes = (IsAuthenticated,)
+    serializer_class = OrderSerializer
+
+
+class NewAuthView(TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            # print(serializer.validated_data)
+            user = User.objects.get(username=request.data['username'])
+            serializer.validated_data['user'] = UserSerializer(user).data
+
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+class UserCreateView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            user = User.objects.create(
+                username=serializer.validated_data['username'],
+                first_name=serializer.validated_data['first_name'],
+                last_name=serializer.validated_data['last_name'],
+                email=serializer.validated_data['email'],
+            )
+            user.set_password(serializer.validated_data['password'])
+            try:
+                validate_password(serializer.validated_data['password'], user)
+            except ValidationError as e:
+                return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
+            das = user.save()
+            token = TokenObtainPairSerializer()
+            token = token.validate({'username': user.username, 'password': serializer.validated_data['password']})
+            # print(token)
+            token["user"] = UserSerializer(user).data
+            # das = TokenObtainSerializer(data={
+            #     'username': serializer.validated_data['username'],
+            #     'password': serializer.validated_data['password']
+            # })
+            # if das.is_valid():
+            #     print(das.validated_data)
+            return Response(token, status=status.HTTP_200_OK)
+        errors = serializer.errors
+        print(errors)
+        return Response(errors, status=status.HTTP_403_FORBIDDEN)

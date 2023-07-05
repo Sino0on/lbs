@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DeliveryDocs, Delivery, Driver, Price, DriverDocument, Order, User, Feedback, Company, Message, MessageDoc, CompanyFeedback, FeedbackImage, Chat
+from .models import *
 
 
 class DeliveryDocsSerializer(serializers.ModelSerializer):

@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
 
 
 statuses = [
@@ -15,9 +16,10 @@ usertypes = [
     ("COMPANY", "Company"),
 ]
 
+
 class DeliveryDocs(models.Model):
     title = models.CharField(max_length=255, verbose_name="Название")
-    document = models.FileField(verbose_name="Документ")
+    document = models.FileField(verbose_name="Документ", upload_to='files/delivery/')
     created_date = models.DateField(verbose_name="Дата создания")
 
     def __str__(self):
@@ -31,13 +33,13 @@ class DeliveryDocs(models.Model):
 class Delivery(models.Model):
     driver = models.ForeignKey('Driver', on_delete=models.CASCADE, verbose_name="Водитель")
     user = models.ForeignKey('User', on_delete=models.CASCADE, verbose_name="Пользователь")
-    order = models.ForeignKey('Order', on_delete=models.CASCADE, verbose_name="Заказ")
+    order = models.OneToOneField('Order', on_delete=models.SET_NULL, verbose_name="Заказ", null=True)
     documents = models.ManyToManyField('DeliveryDocs', verbose_name="Документы доставки")
     start_date = models.DateField(verbose_name="Дата начала")
     end_date = models.DateField(verbose_name="Дата окончания")
     title = models.CharField(max_length=255, verbose_name="Название")
     description = models.TextField(verbose_name="Описание")
-    status = models.CharField(max_length=255,choices=statuses, verbose_name="Статус")
+    status = models.CharField(max_length=255, choices=statuses, verbose_name="Статус")
 
     def __str__(self):
         return self.title
@@ -48,19 +50,18 @@ class Delivery(models.Model):
 
 
 class Driver(models.Model):
-    user = models.ForeignKey('User', on_delete=models.CASCADE, verbose_name="Пользователь")
-    grade = models.IntegerField(verbose_name="Оценка")
+    user = models.OneToOneField('User', on_delete=models.SET_NULL, related_name='is_driver', null=True)
     orders = models.IntegerField(verbose_name="Количество заказов")
-    status = models.CharField(max_length=255,choices=statuses, verbose_name="Статус")
+    status = models.CharField(max_length=255, choices=statuses, verbose_name="Статус")
     documents = models.ManyToManyField('DriverDocument', verbose_name="Документы водителя")
-    driver_license = models.BooleanField(verbose_name="Водительские права")
-    qualification = models.BooleanField(verbose_name="Квалификация")
-    medical_sertificate = models.BooleanField(verbose_name="Медицинское свидетельство")
-    employeement = models.BooleanField(verbose_name="Трудоустройство")
-    recomment = models.IntegerField(verbose_name="Рекомендация")
+    driver_license = models.FileField(verbose_name="Водительские права", upload_to='files/drivers/')
+    qualification = models.FileField(verbose_name="Квалификация", upload_to='files/drivers/')
+    medical_sertificate = models.FileField(verbose_name="Медицинское свидетельство", upload_to='files/drivers/')
+    employeement = models.FileField(verbose_name="Трудоустройство", upload_to='files/drivers/')
+    recomment = models.FileField(verbose_name="Рекомендация", upload_to='files/drivers/')
 
     def __str__(self):
-        return self.user.username
+        return self.user
 
     class Meta:
         verbose_name = "Водитель"
@@ -104,10 +105,10 @@ class Order(models.Model):
     end_place = models.CharField(max_length=255, verbose_name="Место доставки")
     type_order = models.CharField(max_length=255, verbose_name="Тип заказа")
     distance = models.FloatField(verbose_name="Расстояние")
-    price = models.FloatField(verbose_name="Цена")
-    type_car = models.CharField(max_length=255,choices=car_types, verbose_name="Тип автомобиля")
+    price = models.OneToOneField(verbose_name="Цена", to=Price, on_delete=models.PROTECT)
+    type_car = models.CharField(max_length=255, choices=car_types, verbose_name="Тип автомобиля")
     created_date = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
-    status = models.CharField(max_length=255,choices=statuses, verbose_name="Статус")
+    status = models.CharField(max_length=255, choices=statuses, verbose_name="Статус")
 
     def __str__(self):
         return self.title
@@ -117,18 +118,12 @@ class Order(models.Model):
         verbose_name_plural = "Заказы"
 
 
-class User(models.Model):
-    title = models.CharField(max_length=255, verbose_name="Название")
-    username = models.CharField(max_length=255, verbose_name="Имя пользователя")
-    firstname = models.CharField(max_length=255, verbose_name="Имя")
-    lastname = models.CharField(max_length=255, verbose_name="Фамилия")
-    birthdate = models.DateField(verbose_name="Дата рождения")
-    joined_date = models.DateTimeField(auto_now_add=True, verbose_name="Дата регистрации")
-    status = models.CharField(max_length=255,choices=statuses, verbose_name="Статус")
-    type_user = models.CharField(max_length=255,choices=usertypes, verbose_name="Тип пользователя")
-    phone_number = models.CharField(max_length=255, verbose_name="Номер телефона")
-    password = models.CharField(max_length=255, verbose_name="Пароль")
-    email = models.EmailField(max_length=255, verbose_name="Email")
+class User(AbstractUser):
+    grade = models.IntegerField(verbose_name="Оценка", blank=True, null=True)
+    birth_of_date = models.DateField(verbose_name="Дата рождения", blank=True, null=True)
+    status = models.CharField(max_length=255, choices=statuses, verbose_name="Статус", blank=True, null=True)
+    type_user = models.CharField(max_length=255, choices=usertypes, verbose_name="Тип пользователя", blank=True, null=True)
+    phone_number = models.CharField(max_length=255, verbose_name="Номер телефона", blank=True, null=True)
 
     def __str__(self):
         return self.username
@@ -158,7 +153,7 @@ class Company(models.Model):
     title = models.CharField(max_length=255, verbose_name="Название")
     drivers = models.ManyToManyField(Driver, verbose_name="Водители")
     descriptions = models.TextField(verbose_name="Описание")
-    status = models.CharField(max_length=255,choices=statuses, verbose_name="Статус")
+    status = models.CharField(max_length=255, choices=statuses, verbose_name="Статус")
 
     def __str__(self):
         return self.title
@@ -174,7 +169,7 @@ class Message(models.Model):
     text = models.TextField(verbose_name="Текст")
     created_date = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     chat = models.ForeignKey('Chat', on_delete=models.CASCADE, verbose_name="Чат")
-    documets = models.ManyToManyField('MessageDoc', verbose_name="Документы сообщения")
+    documents = models.ManyToManyField('MessageDoc', verbose_name="Документы сообщения")
 
     def __str__(self):
         return self.title
@@ -228,10 +223,10 @@ class Chat(models.Model):
     order = models.ForeignKey('Order', on_delete=models.CASCADE, verbose_name="Заказ")
     driver = models.ForeignKey('Driver', on_delete=models.CASCADE, verbose_name="Водитель")
     created_date = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
-    status = models.CharField(max_length=255,choices=statuses, verbose_name="Статус")
+    status = models.CharField(max_length=255, choices=statuses, verbose_name="Статус")
 
     def __str__(self):
-        return f"Чат {self.id}"
+        return f"Чат {self.pk}"
 
     class Meta:
         verbose_name = "Чат"
