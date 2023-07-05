@@ -10,7 +10,6 @@ import requests
 class ChatConsumers(WebsocketConsumer):
     def connect(self):
         self.room_group_name = self.scope["url_route"]["kwargs"]["pk"]
-        print(self.__dict__)
         print(self.room_group_name)
 
         async_to_sync(self.channel_layer.group_add)(
@@ -23,7 +22,6 @@ class ChatConsumers(WebsocketConsumer):
         print(self.channel_name)
         text_data_json = json.loads(text_data)
         print(text_data_json)
-
         url = f'http://router.project-osrm.org/route/v1/driving/{text_data_json["a"]};{text_data_json["b"]}?steps=true&geometries=geojson&overview=full'
         data = requests.get(url=url)
         print(data.json())
