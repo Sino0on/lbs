@@ -4,6 +4,7 @@ from channels.generic.websocket import WebsocketConsumer
 from asgiref.sync import async_to_sync
 from .models import *
 from django.shortcuts import get_object_or_404
+import requests
 
 
 class ChatConsumers(WebsocketConsumer):
@@ -22,6 +23,10 @@ class ChatConsumers(WebsocketConsumer):
         print(self.channel_name)
         text_data_json = json.loads(text_data)
         print(text_data_json)
+
+        url = f'http://router.project-osrm.org/route/v1/driving/{text_data_json["a"]};{text_data_json["b"]}?steps=true&geometries=geojson&overview=full'
+        data = requests.get(url=url)
+        print(data.json())
         # message = text_data_json["message"]
         # user_id = text_data_json["user"]
         # user = get_object_or_404(Account, id=user_id)
@@ -47,8 +52,8 @@ class ChatConsumers(WebsocketConsumer):
             self.room_group_name,
             {
                 'type': 'chat_message',
-                'x': text_data_json['x'],
-                'y': text_data_json['y']
+                'result': data.json(),
+
             }
         )
 
