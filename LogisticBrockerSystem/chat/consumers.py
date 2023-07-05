@@ -23,8 +23,8 @@ class ChatConsumers(WebsocketConsumer):
         text_data_json = json.loads(text_data)
         print(text_data_json)
         url = f'http://router.project-osrm.org/route/v1/driving/{text_data_json["a"]};{text_data_json["b"]}?steps=true&geometries=geojson&overview=full'
-        data = requests.get(url=url)
-        print(data.json())
+        # data = requests.get(url=url)
+        # print(data.json())
         # message = text_data_json["message"]
         # user_id = text_data_json["user"]
         # user = get_object_or_404(Account, id=user_id)
@@ -50,7 +50,7 @@ class ChatConsumers(WebsocketConsumer):
             self.room_group_name,
             {
                 'type': 'chat_message',
-                'result': data.json(),
+                'result': 'data.json()',
 
             }
         )
