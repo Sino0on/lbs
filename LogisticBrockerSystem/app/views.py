@@ -18,6 +18,7 @@ from rest_framework_simplejwt.tokens import AccessToken, UntypedToken
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from rest_framework_simplejwt.serializers import TokenVerifySerializer
 
+
 @api_view(['GET'])
 def calculate_sum(request):
     # Получение параметров из URL
@@ -44,6 +45,7 @@ class DeliveryDocsViewSet(viewsets.ModelViewSet):
     queryset = DeliveryDocs.objects.all()
     serializer_class = DeliveryDocsSerializer
 
+
 class AllViewSet(viewsets.ViewSet):
     def list(self, request):
         data = {
@@ -65,75 +67,52 @@ class AllViewSet(viewsets.ViewSet):
         return Response(data)
 
 
-class DeliveryViewSet(viewsets.ModelViewSet):
-    queryset = Delivery.objects.all()
-    serializer_class = DeliverySerializer
+class OrderListView(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    queryset = Order.objects.all()
 
 
-class DriverViewSet(viewsets.ModelViewSet):
-    queryset = Driver.objects.all()
-    serializer_class = DriverSerializer
-
-
-class PriceViewSet(viewsets.ModelViewSet):
-    queryset = Price.objects.all()
-    serializer_class = PriceSerializer
-
-
-class DriverDocumentViewSet(viewsets.ModelViewSet):
-    queryset = DriverDocument.objects.all()
-    serializer_class = DriverDocumentSerializer
-
-
-class OrderViewSet(viewsets.ModelViewSet):
+class OrderCreateView(generics.CreateAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
 
 
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
+class OrderDetailCreateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    lookup_field = 'pk'
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    permission_classes = (IsAuthenticated,)
 
 
-class FeedbackViewSet(viewsets.ModelViewSet):
-    queryset = Feedback.objects.all()
-    serializer_class = FeedbackSerializer
+class CompanyListView(generics.ListAPIView):
+    serializer_class = CompanySerializer
+    queryset = Company.objects.all()
+    permission_classes = (IsAuthenticated,)
 
 
-class CompanyViewSet(viewsets.ModelViewSet):
+class CompanyCreateView(generics.CreateAPIView):
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
-
-
-class MessageViewSet(viewsets.ModelViewSet):
-    queryset = Message.objects.all()
-    serializer_class = MessageSerializer
-
-
-class MessageDocViewSet(viewsets.ModelViewSet):
-    queryset = MessageDoc.objects.all()
-    serializer_class = MessageDocSerializer
-
-
-class CompanyFeedbackViewSet(viewsets.ModelViewSet):
-    queryset = CompanyFeedback.objects.all()
-    serializer_class = CompanyFeedbackSerializer
-
-
-class FeedbackImageViewSet(viewsets.ModelViewSet):
-    queryset = FeedbackImage.objects.all()
-    serializer_class = FeedbackImageSerializer
-
-
-class ChatViewSet(viewsets.ModelViewSet):
-    queryset = Chat.objects.all()
-    serializer_class = ChatSerializer
-
-
-class OrderListView(generics.ListAPIView):
-    queryset = Order.objects.all()
     permission_classes = (IsAuthenticated,)
-    serializer_class = OrderSerializer
+
+
+class CompanyDetailCreateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    lookup_field = 'pk'
+    queryset = Company.objects.all()
+    serializer_class = CompanySerializer
+    permission_classes = (IsAuthenticated,)
+
+
+class FeedbackListView(generics.ListAPIView):
+    serializer_class = FeedbackSerializer
+    queryset = Feedback.objects.all()
+    permission_classes = (IsAuthenticated,)
+
+
+class FeedbackCreateView(generics.CreateAPIView):
+    queryset = Feedback.objects.all()
+    serializer_class = FeedbackSerializer
+    permission_classes = (IsAuthenticated,)
 
 
 class NewAuthView(TokenObtainPairView):
@@ -159,6 +138,7 @@ class UserCreateView(generics.CreateAPIView):
                 first_name=serializer.validated_data['first_name'],
                 last_name=serializer.validated_data['last_name'],
                 email=serializer.validated_data['email'],
+                type_user='sender',
             )
             user.set_password(serializer.validated_data['password'])
             try:
@@ -180,3 +160,51 @@ class UserCreateView(generics.CreateAPIView):
         errors = serializer.errors
         print(errors)
         return Response(errors, status=status.HTTP_403_FORBIDDEN)
+
+
+class CheckPriceView(generics.GenericAPIView):
+    serializer_class = OrderSerializer
+
+    def post(self, request, *args, **kwargs):
+        data = self.get_serializer(data=request.data)
+        if data.is_valid():
+            data = data.data
+            price = PriceSingle.objects.all()[0]
+            data2 = requests.get(str(data['start_place']))
+            if 'search' not in data2.url:
+                start_place = data2.url.split('@')[1].split(',')[:2]
+                start_place = ','.join(start_place).replace('+', '')
+            else:
+                start_place = data2.url.split('/')[-1].split('?')[0].replace('+', '')
+
+            data2 = requests.get(str(data['end_place']))
+            if 'search' not in data2.url:
+                end_place = data2.url.split('@')[1].split(',')[:2]
+                end_place = ','.join(end_place).replace('+', '')
+            else:
+                end_place = data2.url.split('/')[-1].split('?')[0].replace('+', '')
+
+            url = f'http://router.project-osrm.org/route/v1/driving/{start_place};{end_place}?steps=true&geometries=geojson&overview=full'
+            response = requests.get(url=url)
+            print(response.json()['routes'][0])
+            total_km = int(response.json()['routes'][0]['distance'])//1000*price.km
+            if data['insurance']:
+                insurance = price.insurance
+            else:
+                insurance = 0
+            if data['express']:
+                express = price.express
+            else:
+                express = 0
+
+            total = total_km + insurance + express
+            payload = {
+                "duration": response.json()['routes'][0]['duration'],
+                "distance": response.json()['routes'][0]['distance'],
+                "km": price.km,
+                "total_km": total_km,
+                "total": total
+            }
+
+            return Response(data=payload, status=status.HTTP_200_OK)
+        return Response(data=data.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+import requests
 
 
 statuses = [
@@ -11,7 +12,7 @@ car_types = [
     ("SMALL", "Small"),
 ]
 usertypes = [
-    ("ADMIN", "Admin"),
+    ("SENDER", "Sender"),
     ("DRIVER", "Driver"),
     ("COMPANY", "Company"),
 ]
@@ -69,10 +70,12 @@ class Driver(models.Model):
 
 
 class Price(models.Model):
-    title = models.IntegerField(verbose_name="Цена")
+    km = models.IntegerField(verbose_name="Цена за км")
+    insurance = models.IntegerField(verbose_name='Страховка')
+    express = models.IntegerField(verbose_name='Срочность')
 
     def __str__(self):
-        return str(self.title)
+        return f'цены'
 
     class Meta:
         verbose_name = "Цена"
@@ -103,12 +106,25 @@ class Order(models.Model):
     comment = models.TextField(verbose_name="Комментарий")
     start_place = models.CharField(max_length=255, verbose_name="Место отправления")
     end_place = models.CharField(max_length=255, verbose_name="Место доставки")
-    type_order = models.CharField(max_length=255, verbose_name="Тип заказа")
-    distance = models.FloatField(verbose_name="Расстояние")
-    price = models.OneToOneField(verbose_name="Цена", to=Price, on_delete=models.PROTECT)
+    express = models.BooleanField(verbose_name="Срочный", default=False, blank=True)
+    distance = models.FloatField(verbose_name="Расстояние", blank=True, null=True)
+    price = models.OneToOneField(verbose_name="Цена", to=Price, on_delete=models.PROTECT, blank=True, null=True)
     type_car = models.CharField(max_length=255, choices=car_types, verbose_name="Тип автомобиля")
+    insurance = models.BooleanField(verbose_name="Страховка", default=False, blank=True)
     created_date = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
-    status = models.CharField(max_length=255, choices=statuses, verbose_name="Статус")
+    status = models.CharField(max_length=255, choices=statuses, verbose_name="Статус", blank=True)
+
+    def save(
+        self, force_insert=False, force_update=False, using=None, update_fields=None
+    ):
+        data = requests.get(str(self.start_place))
+        map = data.url.split('@')[1].split(',')[:2]
+        self.start_place = ''.join(map)
+        data = requests.get(str(self.end_place))
+        map = data.url.split('@')[1].split(',')[:2]
+        self.end_place = ''.join(map)
+        return super().save()
+
 
     def __str__(self):
         return self.title
@@ -231,3 +247,9 @@ class Chat(models.Model):
     class Meta:
         verbose_name = "Чат"
         verbose_name_plural = "Чаты"
+
+
+class PriceSingle(models.Model):
+    km = models.IntegerField(verbose_name="Цена за км")
+    insurance = models.IntegerField(verbose_name='Страховка')
+    express = models.IntegerField(verbose_name='Срочность')

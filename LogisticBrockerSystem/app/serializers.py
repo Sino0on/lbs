@@ -33,6 +33,10 @@ class DriverDocumentSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
+
+    def create(self, validated_data):
+        print(validated_data)
+
     class Meta:
         model = Order
         fields = '__all__'
