@@ -162,6 +162,46 @@ class UserCreateView(generics.CreateAPIView):
         return Response(errors, status=status.HTTP_403_FORBIDDEN)
 
 
+class DriverCreateView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            user = User.objects.create(
+                username=serializer.validated_data['username'],
+                first_name=serializer.validated_data['first_name'],
+                last_name=serializer.validated_data['last_name'],
+                email=serializer.validated_data['email'],
+                type_user='driver',
+            )
+            driver = Driver.objects.create(
+                user=user,
+                orders=0,
+                status='NICE',
+            )
+            user.set_password(serializer.validated_data['password'])
+            try:
+                validate_password(serializer.validated_data['password'], user)
+            except ValidationError as e:
+                return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
+            das = user.save()
+            token = TokenObtainPairSerializer()
+            token = token.validate({'username': user.username, 'password': serializer.validated_data['password']})
+            # print(token)
+            token["user"] = UserSerializer(user).data
+            # das = TokenObtainSerializer(data={
+            #     'username': serializer.validated_data['username'],
+            #     'password': serializer.validated_data['password']
+            # })
+            # if das.is_valid():
+            #     print(das.validated_data)
+            return Response(token, status=status.HTTP_200_OK)
+        errors = serializer.errors
+        print(errors)
+        return Response(errors, status=status.HTTP_403_FORBIDDEN)
+
 class CheckPriceView(generics.GenericAPIView):
     serializer_class = OrderSerializer
 
@@ -208,3 +248,9 @@ class CheckPriceView(generics.GenericAPIView):
 
             return Response(data=payload, status=status.HTTP_200_OK)
         return Response(data=data.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DeliveryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = DeliverySerializer
+    queryset = Delivery.objects.all()
+    lookup_field = 'pk'

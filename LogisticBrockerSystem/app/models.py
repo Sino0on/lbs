@@ -35,7 +35,7 @@ class Delivery(models.Model):
     driver = models.ForeignKey('Driver', on_delete=models.CASCADE, verbose_name="Водитель")
     user = models.ForeignKey('User', on_delete=models.CASCADE, verbose_name="Пользователь")
     order = models.OneToOneField('Order', on_delete=models.SET_NULL, verbose_name="Заказ", null=True)
-    documents = models.ManyToManyField('DeliveryDocs', verbose_name="Документы доставки")
+    documents = models.ManyToManyField('DeliveryDocs', verbose_name="Документы доставки", blank=True, null=True)
     start_date = models.DateField(verbose_name="Дата начала")
     end_date = models.DateField(verbose_name="Дата окончания")
     title = models.CharField(max_length=255, verbose_name="Название")
@@ -52,17 +52,17 @@ class Delivery(models.Model):
 
 class Driver(models.Model):
     user = models.OneToOneField('User', on_delete=models.SET_NULL, related_name='is_driver', null=True)
-    orders = models.IntegerField(verbose_name="Количество заказов")
-    status = models.CharField(max_length=255, choices=statuses, verbose_name="Статус")
-    documents = models.ManyToManyField('DriverDocument', verbose_name="Документы водителя")
-    driver_license = models.FileField(verbose_name="Водительские права", upload_to='files/drivers/')
-    qualification = models.FileField(verbose_name="Квалификация", upload_to='files/drivers/')
-    medical_sertificate = models.FileField(verbose_name="Медицинское свидетельство", upload_to='files/drivers/')
-    employeement = models.FileField(verbose_name="Трудоустройство", upload_to='files/drivers/')
-    recomment = models.FileField(verbose_name="Рекомендация", upload_to='files/drivers/')
+    orders = models.IntegerField(verbose_name="Количество заказов", blank=True, null=True)
+    status = models.CharField(max_length=255, choices=statuses, verbose_name="Статус", blank=True, null=True)
+    documents = models.ManyToManyField('DriverDocument', verbose_name="Документы водителя", blank=True, null=True)
+    driver_license = models.FileField(verbose_name="Водительские права", upload_to='files/drivers/', blank=True, null=True)
+    qualification = models.FileField(verbose_name="Квалификация", upload_to='files/drivers/', blank=True, null=True)
+    medical_sertificate = models.FileField(verbose_name="Медицинское свидетельство", upload_to='files/drivers/', blank=True, null=True)
+    employeement = models.FileField(verbose_name="Трудоустройство", upload_to='files/drivers/', blank=True, null=True)
+    recomment = models.FileField(verbose_name="Рекомендация", upload_to='files/drivers/', blank=True, null=True)
 
     def __str__(self):
-        return self.user
+        return f'Водитель {self.pk}'
 
     class Meta:
         verbose_name = "Водитель"
